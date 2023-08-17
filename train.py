@@ -78,7 +78,7 @@ class onlineAnom(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.GRU_LIST = [nn.GRU(args.gru_input, args.gru_hidden, args.gru_layers) for _ in range(args.num_users)]
+        self.GRU_LIST = nn.ModuleList([nn.GRU(args.gru_input, args.gru_hidden, args.gru_layers) for _ in range(args.num_users)])
         self.GRU_HID = [torch.randn(1,1,args.gru_hidden) for _ in range(args.num_users)]
         self.GRU_OUT = [0 for _ in range(args.num_users)]
         
@@ -87,7 +87,7 @@ class onlineAnom(nn.Module):
         self.agg = nn.Linear(args.info_dim + 1, args.gru_input)
         self.info_up = nn.Linear(args.info_dim + 1, args.info_dim)
 
-        self.cls = nn.Linear(self.gru_hidden, 1)
+        self.cls = nn.Linear(args.gru_hidden, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, user, target, delt):
@@ -104,3 +104,29 @@ class onlineAnom(nn.Module):
         return self.sigmoid(classi)
 
 
+model = onlineAnom().to(device)
+
+pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print("Model Parameter Count :", pytorch_total_params)
+
+
+class temp_dataset(torch.utils.data.Dataset):
+    def __init__(self, feats, labels, data_type="dataset"):
+        self._feat_list = feats
+        self._label_list = labels
+
+    def __len__(self):
+        return self._label_list.shape[0]
+    
+    def __getitem__(self, index):
+        return (self._feat_list[:, index], self._label_list[index])
+
+
+static_data = temp_dataset(static_feats, static_labels)
+online_data = temp_dataset(online_feats, online_labels)
+
+static_loader = torch.utils.data.DataLoader(static_data, batch_size=1, shuffle=False)
+online_loader = torch.utils.data.DataLoader(online_data, batch_size=1, shuffle=False)
+
+for batch in static_loader:
+    pass
