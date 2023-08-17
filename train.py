@@ -79,10 +79,10 @@ class onlineAnom(nn.Module):
         super().__init__()
 
         self.GRU_LIST = nn.ModuleList([nn.GRU(args.gru_input, args.gru_hidden, args.gru_layers) for _ in range(args.num_users)])
-        self.GRU_HID = [torch.randn(1,1,args.gru_hidden) for _ in range(args.num_users)]
+        self.GRU_HID = [torch.randn(1,1,args.gru_hidden).to(device) for _ in range(args.num_users)]
         self.GRU_OUT = [0 for _ in range(args.num_users)]
         
-        self.TARG_LIST = [torch.randn(args.info_dim) for _ in range(args.num_users)]
+        self.TARG_LIST = [torch.randn(args.info_dim).to(device) for _ in range(args.num_users)]
 
         self.agg = nn.Linear(args.info_dim + 1, args.gru_input)
         self.info_up = nn.Linear(args.info_dim + 1, args.info_dim)
@@ -91,12 +91,19 @@ class onlineAnom(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, user, target, delt):
-        agg_up = self.agg(torch.concat((delt, self.TARG_LIST[target])))
+        # print(delt)
+
+        conc_temp = torch.concat((delt.reshape(1), self.TARG_LIST[target])).to(device)
+        # print(type(conc_temp))
+
+        agg_up = self.agg(conc_temp)
         gru_out, gru_hid = self.GRU_LIST[user](agg_up, self.GRU_HID[user])
         self.GRU_HID[user] = gru_hid
         self.GRU_OUT[user] = gru_out
 
-        info_up = self.info_up(torch.concat((delt, self.TARG_LIST[user])))
+        conc_retemp = torch.concat((delt.reshape(1), self.TARG_LIST[target])).to(device)
+
+        info_up = self.info_up(conc_retemp)
         self.TARG_LIST[target] = info_up
 
         classi = self.cls(gru_out)
@@ -128,5 +135,33 @@ online_data = temp_dataset(online_feats, online_labels)
 static_loader = torch.utils.data.DataLoader(static_data, batch_size=1, shuffle=False)
 online_loader = torch.utils.data.DataLoader(online_data, batch_size=1, shuffle=False)
 
-for batch in static_loader:
-    pass
+criterion = nn.BCELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=1)
+
+model.train()
+
+for batch in tqdm(static_loader):
+    feats = batch[0].squeeze()
+    label = batch[1].type(torch.LongTensor).to(device)
+
+    # print(feats)
+    # print(label)
+
+    #user, target, delta / label
+
+    user = int(feats[0].item())
+    target = int(feats[1].item())
+    delta = torch.tensor(feats[2], dtype=torch.float32).to(device)
+
+    optimizer.zero_grad()
+
+    model_out = model(user, target, delta).squeeze()
+    
+    loss = criterion(model_out, label)
+    loss.backward()
+
+    nn.utils.clip_grad_norm_(model.parameters(), 5)
+
+    optimizer.step()
+    scheduler.step()
