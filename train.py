@@ -79,7 +79,7 @@ class onlineAnom(nn.Module):
         super().__init__()
 
         self.GRU_LIST = nn.ModuleList([nn.GRU(args.gru_input, args.gru_hidden, args.gru_layers) for _ in range(args.num_users)])
-        self.GRU_HID = [torch.randn(1,1,args.gru_hidden).to(device) for _ in range(args.num_users)]
+        self.GRU_HID = [torch.randn(1,args.gru_hidden).to(device) for _ in range(args.num_users)]
         self.GRU_OUT = [0 for _ in range(args.num_users)]
         
         self.TARG_LIST = [torch.randn(args.info_dim).to(device) for _ in range(args.num_users)]
@@ -97,7 +97,7 @@ class onlineAnom(nn.Module):
         # print(type(conc_temp))
 
         agg_up = self.agg(conc_temp)
-        gru_out, gru_hid = self.GRU_LIST[user](agg_up, self.GRU_HID[user])
+        gru_out, gru_hid = self.GRU_LIST[user](torch.unsqueeze(agg_up,0), self.GRU_HID[user])
         self.GRU_HID[user] = gru_hid
         self.GRU_OUT[user] = gru_out
 
@@ -143,7 +143,7 @@ model.train()
 
 for batch in tqdm(static_loader):
     feats = batch[0].squeeze()
-    label = batch[1].type(torch.LongTensor).to(device)
+    label = torch.tensor(batch[1].item(), dtype=torch.float32).to(device)
 
     # print(feats)
     # print(label)
@@ -157,9 +157,12 @@ for batch in tqdm(static_loader):
     optimizer.zero_grad()
 
     model_out = model(user, target, delta).squeeze()
+
+    # print("MODEL_OUT", model_out)
+    # print("LABEL", label)
     
-    loss = criterion(model_out, label)
-    loss.backward()
+    loss = criterion(model_out, label.squeeze())
+    loss.backward(retain_graph=True)
 
     nn.utils.clip_grad_norm_(model.parameters(), 5)
 
