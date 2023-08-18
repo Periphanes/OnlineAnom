@@ -31,7 +31,7 @@ for i in range(com_cnt//2):
                 rnd_tmp = random.randint(0, 1000)
                 if rnd_tmp <= ln_p:
                     rnd_dlt = random.randint(0, 100)
-                    lns.append(np.array((str_num, tar_num, rnd_dlt)))
+                    lns.append(np.array((i, str_num, tar_num, rnd_dlt)))
 
 random.shuffle(lns)
 ln = np.stack(lns)
@@ -42,4 +42,3 @@ print(ln)
 pickle_dir = "datasets/sbm/sbm_acts.pickle"
 with open(pickle_dir, 'wb') as handle:
     pickle.dump(ln, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
