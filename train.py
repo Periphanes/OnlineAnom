@@ -13,6 +13,7 @@ import random
 import pickle
 
 from sklearn.cluster import DBSCAN
+import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
 
@@ -143,9 +144,14 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=1)
 
 model.train()
 
+node_id = []
+tar_id = []
+
 for idx, batch in enumerate(tqdm(static_loader)):
-    corrupted = [1119, 1121, 1131, 1133, 1139, 1151, 1153, 3404, 3406]
-    if idx in corrupted:
+    corrupted = [1119, 1121, 1131, 1133, 1139, 1151, 
+                 1153, 1155, 3404, 3406, 1161, 1165,
+                 4176, 4179, 4180, 1166, 1170, 3411]
+    if idx + 2000 in corrupted: #  or (idx > 1170 and idx < 1200):
         print(batch)
         continue
     
@@ -162,6 +168,9 @@ for idx, batch in enumerate(tqdm(static_loader)):
     target = int(feats[1].item())
     delta = feats[2].type(torch.FloatTensor).to(device)
     # delta = torch.tensor(feats[2], dtype=torch.float32).to(device)
+
+    node_id.append(user)
+    tar_id.append(target)
 
     # if target == 1:
     #     print("Target 1")
@@ -184,7 +193,21 @@ for idx, batch in enumerate(tqdm(static_loader)):
 
 model.eval()
 
+node_id = np.array(node_id)
+node_ids, counts = np.unique(node_id, return_counts=True)
+
+plt.plot(node_ids, counts)
+plt.show()
+
 cur_lab = 0
+anom_count = 0
+
+total_in = 0
+
+anom_nodes = [479, 404, 34, 56, 16, 9, 195, 19, 180, 183, 154, 193, 312, 303, 274, 278, 127, 258, 220, 116, 336, 186, 226, 296, 240, 95, 152, 93, 33, 212, 305, 312, 154, 431, 44, 312, 208, 108, 326, 488, 
+16, 400, 23, 25, 51, 278, 245, 328, 492, 156, 186, 148, 358, 418, 499, 369, 113, 105, 134, 190, 436, 182, 289, 77, 439, 339, 268, 273, 457, 15, 116, 361, 398, 1, 396, 43, 176, 324, 286, 179, 
+407, 71, 169, 298, 121, 160, 463, 72, 347, 153, 105, 224, 117, 322, 128, 33, 2, 119, 478, 256]
+
 
 for idx, batch in enumerate(tqdm(online_loader)):
     feats = batch[0].squeeze()
@@ -197,20 +220,33 @@ for idx, batch in enumerate(tqdm(online_loader)):
     model_out = model(user, target, delta).squeeze()
 
     if cur_lab == 1 and label == 0:
-        dbscan = DBSCAN(3, 7)
+        dbscan = DBSCAN(eps = 0.2, min_samples= 7)
 
         gru_out_cp = model.GRU_OUT
         dbscan_inp = []
 
         for out in gru_out_cp:
-            if out == 0:
-                dbscan.append(np.zeros(args.gru_hidden))
+            if isinstance(out, int) and out == 0:
+                dbscan_inp.append(np.zeros(args.gru_hidden))
             else:
-                dbscan.append(out.numpy())
+                dbscan_inp.append(out.squeeze().cpu().detach().numpy())
 
-        dbscan.fit(model.GRU_OUT)
+        dbscan.fit(dbscan_inp)
 
         labels = dbscan.labels_
         outliers = np.where(labels==-1)[0]
+        # print(outliers)
+        # print(len(outliers))
 
-        print(outliers)
+        if anom_nodes[anom_count] in outliers:
+            print("In!")
+            total_in += 1
+        else:
+            print("Not!")
+        
+        anom_count += 1
+
+    cur_lab = label
+
+
+print(total_in)
