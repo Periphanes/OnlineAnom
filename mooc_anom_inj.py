@@ -13,12 +13,15 @@ with open('datasets/act-mooc/mooc_action_pickle.pickle', 'rb') as handle:
 # Number of Positive Action Labels : 4,066
 # Timestamp - Seconds
 
-static_data = data[:, :350000]
+# static_data = data[:, :350000]
+static_data = data[:, :4000]
 
 static_feats = np.concatenate((static_data[:2], np.expand_dims(static_data[8], 0)))
 static_labels = static_data[3]
 
-online_data = data[:, 350000:]
+# online_data = data[:, 350000:]
+online_data = data[:, 4000:6000]
+
 
 online_feats = np.concatenate((online_data[:2], np.expand_dims(online_data[8], 0)))
 
@@ -29,7 +32,7 @@ print(static_feats.shape, static_labels.shape, online_feats.shape)
 
 online_len_dec = online_feats.shape[1] // 11
 
-anom_nodes = [4854,934,7004,4031,6556,4324,524,643,1435,2343]
+anom_nodes = [0, 1, 2, 3, 4,6556,4324,524,643,1435,2343]
 
 anom_count = 300
 anom_ones = np.ones((anom_count))
