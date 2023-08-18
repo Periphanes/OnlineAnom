@@ -12,6 +12,8 @@ import argparse
 import random
 import pickle
 
+from sklearn.cluster import DBSCAN
+
 parser = argparse.ArgumentParser()
 
 parser.add_argument('--cpu', type=bool, default=False)
@@ -141,7 +143,13 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=1)
 
 model.train()
 
-for batch in tqdm(static_loader):
+for idx, batch in enumerate(tqdm(static_loader)):
+    corrupted = [1119, 1121, 1131, 1133, 3404, 3406]
+    if idx in corrupted:
+        print(batch)
+        continue
+    
+
     feats = batch[0].squeeze()
     label = torch.tensor(batch[1].item(), dtype=torch.float32).to(device)
 
@@ -152,7 +160,12 @@ for batch in tqdm(static_loader):
 
     user = int(feats[0].item())
     target = int(feats[1].item())
-    delta = torch.tensor(feats[2], dtype=torch.float32).to(device)
+    delta = feats[2].type(torch.FloatTensor).to(device)
+    # delta = torch.tensor(feats[2], dtype=torch.float32).to(device)
+
+    # if target == 1:
+    #     print("Target 1")
+    #     continue
 
     optimizer.zero_grad()
 
@@ -160,7 +173,7 @@ for batch in tqdm(static_loader):
 
     # print("MODEL_OUT", model_out)
     # print("LABEL", label)
-    
+
     loss = criterion(model_out, label.squeeze())
     loss.backward(retain_graph=True)
 
@@ -168,3 +181,26 @@ for batch in tqdm(static_loader):
 
     optimizer.step()
     scheduler.step()
+
+model.eval()
+
+cur_lab = 0
+
+for idx, batch in enumerate(tqdm(online_loader)):
+    feats = batch[0].squeeze()
+    label = int(batch[1].item())
+
+    user = int(feats[0].item())
+    target = int(feats[1].item())
+    delta = feats[2].type(torch.FloatTensor).to(device)
+
+    model_out = model(user, target, delta).squeeze()
+
+    if cur_lab == 1 and label == 0:
+        dbscan = DBSCAN(3, 7)
+        dbscan.fit(model.GRU_OUT)
+
+        labels = dbscan.labels_
+        outliers = np.where(labels==-1)[0]
+
+        print(outliers)
