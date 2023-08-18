@@ -144,7 +144,7 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=1)
 model.train()
 
 for idx, batch in enumerate(tqdm(static_loader)):
-    corrupted = [1119, 1121, 1131, 1133, 3404, 3406]
+    corrupted = [1119, 1121, 1131, 1133, 1139, 1151, 1153, 3404, 3406]
     if idx in corrupted:
         print(batch)
         continue
@@ -198,6 +198,16 @@ for idx, batch in enumerate(tqdm(online_loader)):
 
     if cur_lab == 1 and label == 0:
         dbscan = DBSCAN(3, 7)
+
+        gru_out_cp = model.GRU_OUT
+        dbscan_inp = []
+
+        for out in gru_out_cp:
+            if out == 0:
+                dbscan.append(np.zeros(args.gru_hidden))
+            else:
+                dbscan.append(out.numpy())
+
         dbscan.fit(model.GRU_OUT)
 
         labels = dbscan.labels_
