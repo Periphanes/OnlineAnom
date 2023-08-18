@@ -61,16 +61,18 @@ if args.dataset == "mooc":
 
     with open('datasets/act-mooc/mooc_action_anom.pickle', 'rb') as handle:
         ret_data = pickle.load(handle)
-    
-    static_feats = ret_data[0]
-    static_labels = ret_data[1]
-    online_feats = ret_data[2]
-    online_labels = ret_data[3]
 
 if args.dataset == "sbm":
-    args.num_users = 0
-    args.num_info = 0
+    args.num_users = 1000
+    args.num_info = 1000
 
+    with open('datasets/sbm/sbm_anom.pickle', 'rb') as handle:
+        ret_data = pickle.load(handle)
+
+static_feats = ret_data[0]
+static_labels = ret_data[1]
+online_feats = ret_data[2]
+online_labels = ret_data[3]
 
 # node_gru = nn.GRU(2, args.gru_hidden, args.gru_layers)
 
