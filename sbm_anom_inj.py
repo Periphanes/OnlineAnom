@@ -11,7 +11,10 @@ print(data.shape)
 static_data = data[:, :2000]
 
 static_feats = static_data[1:]
-static_labels = static_data[0]
+static_lab_indices = static_data[0]
+
+static_labels = np.zeros((static_lab_indices.shape[0], 10))
+
 
 online_data = data[:, 2000:]
 
